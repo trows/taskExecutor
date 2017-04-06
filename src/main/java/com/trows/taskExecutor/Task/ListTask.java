@@ -4,6 +4,7 @@ import com.trows.taskExecutor.Exception.IllegalRunnableException;
 import com.trows.taskExecutor.ThreadPool.BlockingTaskExecutor;
 import com.trows.taskExecutor.runnable.AbstractRunnable;
 import com.trows.taskExecutor.runnable.BaseRunnable;
+import com.trows.taskExecutor.runnable.SyncEndRunnable;
 import org.apache.log4j.Logger;
 
 
@@ -63,7 +64,7 @@ public class ListTask implements Task {
             try {
                 Field field = clazz.getDeclaredField("taskList");
                 field.setAccessible(true);
-                field.set(runnable, field);
+                field.set(runnable, partList);
             } catch (NoSuchFieldException e) {
                 logger.error("No such taskList", e);
             } catch (IllegalAccessException e) {
@@ -75,7 +76,7 @@ public class ListTask implements Task {
             try {
                 Field field = clazz.getDeclaredField("params");
                 field.setAccessible(true);
-                field.set(runnable, field);
+                field.set(runnable, params);
             } catch (NoSuchFieldException e) {
                 logger.error("No such params map", e);
             } catch (IllegalAccessException e) {
@@ -93,23 +94,15 @@ public class ListTask implements Task {
 
     public boolean doTask(int availabilityThread) throws IllegalRunnableException {
         if (!isLegal) throw new IllegalRunnableException();
+        BaseRunnable baseJob;
         int max = (int) Math.ceil(taskList.size() / (availabilityThread * 1.0));
         if (max == 0) max = 1;
         int tag = (int) Math.ceil(taskList.size() / (max * 1.0));
         List<Future> list = new ArrayList<Future>(tag);
-        BaseRunnable baseJob;
         try {
             baseJob = getRunnable(taskList);
             baseJob.before();
-            for (int i = 0; i < tag; i++) {
-                List partList;
-                if (i == tag - 1) {
-                    partList = taskList.subList(i * max, list.size());
-                } else {
-                    partList = taskList.subList(i * max, (i + 1) * max);
-                }
-                list.add(executorService.submit(getRunnable(partList)));
-            }
+            distribute(max, tag, list);
         } catch (IllegalAccessException e) {
             logger.error(e);
             return false;
@@ -117,6 +110,10 @@ public class ListTask implements Task {
             logger.error(e);
             return false;
         }
+        return block(list, baseJob);
+    }
+
+    private boolean block(List<Future> list, BaseRunnable baseJob) {
         try {
             for (Future future : list) {
                 future.get();
@@ -141,23 +138,30 @@ public class ListTask implements Task {
         int max = (int) Math.ceil(taskList.size() / (availabilityThread * 1.0));
         if (max == 0) max = 1;
         int tag = (int) Math.ceil(taskList.size() / (max * 1.0));
+        List<Future> list = new ArrayList<Future>(tag);
         BaseRunnable baseJob;
         try {
             baseJob = getRunnable(taskList);
             baseJob.before();
-            for (int i = 0; i < tag; i++) {
-                List partList;
-                if (i == tag - 1) {
-                    partList = taskList.subList(i * max, taskList.size());
-                } else {
-                    partList = taskList.subList(i * max, (i + 1) * max);
-                }
-                executorService.execute(getRunnable(partList));
-            }
+            distribute(max, tag, list);
+            executorService.execute(new SyncEndRunnable(baseJob,list));
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (InstantiationException e) {
             e.printStackTrace();
+        }
+    }
+
+
+    private void distribute(int max, int tag, List<Future> list) throws IllegalAccessException, InstantiationException {
+        for (int i = 0; i < tag; i++) {
+            List partList;
+            if (i == tag - 1) {
+                partList = taskList.subList(i * max, taskList.size());
+            } else {
+                partList = taskList.subList(i * max, (i + 1) * max);
+            }
+            list.add(executorService.submit(getRunnable(partList)));
         }
     }
 }

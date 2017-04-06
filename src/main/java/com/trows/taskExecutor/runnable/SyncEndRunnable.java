@@ -50,6 +50,6 @@ public class SyncEndRunnable implements BaseRunnable, Comparable<SyncEndRunnable
     }
 
     public void run() {
-
+        after();
     }
 }
