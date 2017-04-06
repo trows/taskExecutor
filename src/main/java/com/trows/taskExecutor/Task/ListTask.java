@@ -88,8 +88,7 @@ public class ListTask implements Task {
     }
 
     public boolean doTask() throws IllegalRunnableException {
-        doTask(corePoolSize);
-        return false;
+        return doTask(corePoolSize);
     }
 
     public boolean doTask(int availabilityThread) throws IllegalRunnableException {
