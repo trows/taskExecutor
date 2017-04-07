@@ -5,7 +5,7 @@
     <artifactId>taskExecutor</artifactId>
     <description>A tool for handling multi-threaded tasks</description>
     <packaging>jar</packaging>
-    <version>1.0</version>
+    <version>1.0-SNAPSHOT</version>
     <parent>
         <groupId>org.sonatype.oss</groupId>
         <artifactId>oss-parent</artifactId>
